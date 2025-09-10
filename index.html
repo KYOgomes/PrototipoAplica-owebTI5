@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fechador de Janela — Protótipo Web</title>
+  <style>
+    :root{
+      --bg:#0f1724;
+      --card:#0b1220cc;
+      --glass: rgba(255,255,255,0.04);
+      --accent:#4f46e5;
+      --accent-2:#06b6d4;
+      --muted:#94a3b8;
+      --success:#10b981;
+      --danger:#ef4444;
+      --glass-border: rgba(255,255,255,0.06);
+      font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%; margin:0; background: radial-gradient(1200px 600px at 10% 10%, rgba(79,70,229,0.12), transparent), linear-gradient(180deg, #071028 0%, #071226 100%); color:#e6eef8}
+
+    .app{max-width:880px; margin:24px auto; padding:18px; border-radius:20px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); box-shadow: 0 10px 30px rgba(2,6,23,0.6); border:1px solid rgba(255,255,255,0.03); min-height:640px; display:flex; flex-direction:column;}
+
+    header{display:flex; align-items:center; gap:12px}
+    .logo{width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;font-weight:700;box-shadow:0 6px 20px rgba(79,70,229,0.18)}
+    .logo span{font-size:20px}
+    h1{font-size:18px;margin:0}
+    p.sub{margin:0;color:var(--muted);font-size:13px}
+
+    /* Tabs */
+    .tabs{display:flex; gap:8px; margin:14px 0}
+    .tab{flex:1;padding:10px;border-radius:12px;text-align:center;cursor:pointer;background:transparent;border:1px solid transparent;color:var(--muted);transition:all .25s ease}
+    .tab.active{background:linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));color:#fff;border:1px solid var(--glass-border); box-shadow: inset 0 1px 0 rgba(255,255,255,0.02)}
+
+    /* Layout principal */
+    .content{
+      flex:1;
+      display:grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap:16px;
+      align-items:flex-start;
+    }
+    .column{display:flex; flex-direction:column; gap:12px}
+    .column.right{max-width:280px; min-width:240px}
+
+    /* Card */
+    .card{background:var(--card); border-radius:14px; padding:12px; border:1px solid var(--glass-border); box-shadow: 0 6px 18px rgba(2,6,23,0.5)}
+
+    /* user summary */
+    .user-summary{display:flex; gap:12px; align-items:center}
+    .user-photo{width:64px;height:64px;border-radius:12px;background:linear-gradient(135deg,#0b1220,#0d1a2b);display:flex;align-items:center;justify-content:center;font-weight:600;color:var(--muted);overflow:hidden}
+    .user-photo img{width:100%; height:100%; object-fit:cover}
+    .user-meta{display:flex;flex-direction:column}
+    .user-meta b{font-size:15px}
+    .user-meta small{color:var(--muted)}
+
+    /* history */
+    .history{margin-top:12px; overflow:auto; max-height:360px}
+    .item{display:flex; gap:10px; align-items:flex-start; padding:10px; border-radius:10px; margin-bottom:8px; background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00)); border:1px solid rgba(255,255,255,0.02); transform-origin:left; animation:pop .28s ease}
+    @keyframes pop{from{opacity:0; transform:translateX(-6px) scale(.995)} to{opacity:1; transform:none}}
+    .badge{width:44px;height:44px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700}
+    .badge.umidade{background:linear-gradient(180deg, rgba(6,182,212,0.12), rgba(6,182,212,0.04)); color:var(--accent-2); border:1px solid rgba(6,182,212,0.06)}
+    .badge.fechado{background:linear-gradient(180deg, rgba(239,68,68,0.08), rgba(239,68,68,0.02)); color:var(--danger); border:1px solid rgba(239,68,68,0.06)}
+
+    .item-body{flex:1}
+    .item-body .time{font-size:12px;color:var(--muted)}
+    .item-body .msg{font-weight:600}
+
+    /* controls */
+    .controls{display:flex; flex-direction:column; gap:10px; margin-top:10px}
+    .btn{padding:12px;border-radius:12px;border:none;cursor:pointer;font-weight:700;box-shadow:0 8px 18px rgba(2,6,23,0.45);transition:transform .12s ease, box-shadow .12s ease}
+    .btn:active{transform:translateY(2px)}
+    .btn.primary{background:linear-gradient(90deg,var(--accent),var(--accent-2)); color:white}
+    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04); color:var(--muted)}
+    .btn.warn{background:linear-gradient(90deg, rgba(255,165,0,0.12), rgba(255,165,0,0.06)); color:orange}
+
+    .row{display:flex; gap:8px}
+
+    /* user form */
+    .form{display:flex;flex-direction:column; gap:8px}
+    input[type=text], input[type=email]{padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.04); background:transparent;color:inherit}
+    input[type=file]{color:var(--muted)}
+
+    .small{font-size:12px;color:var(--muted)}
+
+    /* footer */
+    footer{margin-top:12px;text-align:center;color:var(--muted); font-size:12px}
+
+    /* responsivo */
+    @media (max-width:768px){
+      .app{max-width:100%; margin:14px;}
+      .content{grid-template-columns:1fr}
+      .column.right{max-width:100%; min-width:unset}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="logo"><span>FJ</span></div>
+      <div>
+        <h1>Fechador de Janela</h1>
+        <p class="sub">Protótipo web — notificações simuladas</p>
+      </div>
+    </header>
+
+    <div class="tabs" role="tablist">
+      <div class="tab active" data-tab="notifs">Notificações</div>
+      <div class="tab" data-tab="user">Usuário</div>
+      <div class="tab" data-tab="config">Config</div>
+    </div>
+
+    <div class="content">
+      <!-- Coluna esquerda -->
+      <div class="column">
+        <div class="card">
+          <div class="user-summary">
+            <div class="user-photo" id="userPhotoSummary"> <span>?</span> </div>
+            <div class="user-meta">
+              <b id="summaryName">Nome: -</b>
+              <small id="summaryEmail">Email: -</small>
+            </div>
+          </div>
+
+          <div class="history" id="history"></div>
+
+          <div class="controls">
+            <button class="btn primary" id="btnFechar">Janela fechada</button>
+            <button class="btn" id="btnUmidade">Detectada umidade</button>
+            <div class="row">
+              <button class="btn ghost" id="btnLimpar">Limpar histórico</button>
+              <button class="btn ghost" id="btnExport">Exportar histórico</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Coluna direita -->
+      <div class="column right">
+        <div class="card" id="userCard">
+          <h3>Dados do Usuário</h3>
+          <form class="form" id="userForm" onsubmit="return false">
+            <label class="small">Foto</label>
+            <input type="file" id="inputFoto" accept="image/*">
+            <div style="display:flex; gap:10px; align-items:center">
+              <div class="user-photo" style="width:72px;height:72px;"> <img id="previewFoto" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:8px"> </div>
+              <div style="flex:1">
+                <label class="small">Nome</label>
+                <input type="text" id="inputNome" placeholder="Seu nome">
+                <label class="small">Email</label>
+                <input type="email" id="inputEmail" placeholder="seu@exemplo.com">
+              </div>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+              <button class="btn primary" id="btnSalvar">Salvar dados</button>
+              <button class="btn warn" id="btnClearUser">Limpar</button>
+            </div>
+          </form>
+
+          <hr style="opacity:.06;margin:12px 0">
+          <div>
+            <h4>Simulação "Servidor"</h4>
+            <p class="small">Quando uma notificação é criada, ela é também enviada ao servidor (simulado) — checar console.</p>
+            <button class="btn ghost" id="btnSimularServer">Ver log no console</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h4>Configurações</h4>
+          <label class="small">Notificações sonoras</label>
+          <div style="margin:8px 0">
+            <input type="checkbox" id="cfgSound" checked> <small>Ativar som ao criar notificação</small>
+          </div>
+          <label class="small">Limpar automaticamente após</label>
+          <select id="cfgAutoClear">
+            <option value="0">Nunca</option>
+            <option value="60">60s</option>
+            <option value="300">5min</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      Protótipo criado para apresentação TI5 — Caio Gomes
+    </footer>
+  </div>
+
+  <audio id="pingSound" src="" preload="auto"></audio>
+
+  <script>
+    // Estado
+    const state = { history: [], user: { name:'', email:'', photoData:null} };
+
+    // Elements
+    const tabs = document.querySelectorAll('.tab');
+    const historyEl = document.getElementById('history');
+    const btnFechar = document.getElementById('btnFechar');
+    const btnUmidade = document.getElementById('btnUmidade');
+    const btnLimpar = document.getElementById('btnLimpar');
+    const btnExport = document.getElementById('btnExport');
+    const summaryName = document.getElementById('summaryName');
+    const summaryEmail = document.getElementById('summaryEmail');
+    const userPhotoSummary = document.getElementById('userPhotoSummary');
+    const inputFoto = document.getElementById('inputFoto');
+    const previewFoto = document.getElementById('previewFoto');
+    const inputNome = document.getElementById('inputNome');
+    const inputEmail = document.getElementById('inputEmail');
+    const btnSalvar = document.getElementById('btnSalvar');
+    const btnClearUser = document.getElementById('btnClearUser');
+    const btnSimularServer = document.getElementById('btnSimularServer');
+    const cfgSound = document.getElementById('cfgSound');
+    const cfgAutoClear = document.getElementById('cfgAutoClear');
+
+    // Helper
+    function now(){
+      const d = new Date();
+      return d.toLocaleString('pt-BR');
+    }
+
+    function renderHistory(){
+      historyEl.innerHTML = '';
+      for(let i=state.history.length-1;i>=0;i--){
+        const it = state.history[i];
+        const div = document.createElement('div');
+        div.className = 'item';
+
+        const badge = document.createElement('div');
+        badge.className = 'badge ' + (it.type==='UMIDADE' ? 'umidade' : 'fechado');
+        badge.textContent = it.type==='UMIDADE' ? '💧' : '❌';
+
+        const body = document.createElement('div');
+        body.className = 'item-body';
+        body.innerHTML = `<div class="time">${it.time}</div><div class="msg">${it.msg}</div>`;
+
+        div.appendChild(badge);
+        div.appendChild(body);
+        historyEl.appendChild(div);
+      }
+    }
+
+    function addNotification(msg, type){
+      const entry = { time: now(), msg, type };
+      state.history.push(entry);
+      renderHistory();
+      console.log('[Servidor] Notificação enviada:', entry);
+      if(cfgSound.checked){
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type='sine'; o.frequency.value = type==='UMIDADE' ? 660 : 420;
+        g.gain.value = 0.02;
+        o.connect(g); g.connect(ctx.destination);
+        o.start(); o.stop(ctx.currentTime+0.08);
+      }
+
+      const auto = parseInt(cfgAutoClear.value,10);
+      if(auto>0){
+        setTimeout(()=>{ state.history = []; renderHistory(); }, auto*1000);
+      }
+    }
+
+    // events
+    btnFechar.addEventListener('click', ()=> addNotification('A janela foi fechada automaticamente.', 'FECHADO'));
+    btnUmidade.addEventListener('click', ()=> {
+      const ok = confirm('Umidade detectada. Deseja fechar a janela?');
+      if(ok) addNotification('Umidade detectada → Janela fechada pelo usuário.', 'UMIDADE');
+      else addNotification('Umidade detectada → Usuário manteve a janela aberta.', 'UMIDADE');
+    });
+    btnLimpar.addEventListener('click', ()=>{ if(confirm('Limpar histórico?')){ state.history=[]; renderHistory(); alert('Histórico limpo') } });
+
+    btnExport.addEventListener('click', ()=>{
+      const lines = state.history.map(h=>`[${h.time}] [${h.type}] ${h.msg}`);
+      const blob = new Blob([lines.join('\n')], {type:'text/plain;charset=utf-8'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download = `historico_${new Date().toISOString().slice(0,19)}.txt`; a.click(); URL.revokeObjectURL(url);
+    });
+
+    // user
+    inputFoto.addEventListener('change', (e)=>{
+      const f = e.target.files[0];
+      if(!f) return;
+      const r = new FileReader();
+      r.onload = ()=>{
+        previewFoto.src = r.result; previewFoto.style.display='block';
+        userPhotoSummary.innerHTML = '';
+        const img = document.createElement('img'); img.src = r.result; img.style.width='100%'; img.style.height='100%'; img.style.objectFit='cover';
+        userPhotoSummary.appendChild(img);
+        state.user.photoData = r.result;
+      };
+      r.readAsDataURL(f);
+    });
+
+    btnSalvar.addEventListener('click', ()=>{
+      state.user.name = inputNome.value.trim();
+      state.user.email = inputEmail.value.trim();
+      summaryName.textContent = state.user.name ? state.user.name : 'Nome: -';
+      summaryEmail.textContent = state.user.email ? state.user.email : 'Email: -';
+      alert('Dados do usuário atualizados');
+    });
+
+    btnClearUser.addEventListener('click', ()=>{
+      if(!confirm('Limpar dados do usuário?')) return;
+      inputNome.value=''; inputEmail.value=''; previewFoto.style.display='none'; userPhotoSummary.innerHTML='?'; state.user={name:'',email:'',photoData:null}; summaryName.textContent='Nome: -'; summaryEmail.textContent='Email: -';
+    });
+
+    btnSimularServer.addEventListener('click', ()=>{
+      console.log('Estado atual do protótipo (simulado):', JSON.stringify(state, null, 2));
+      alert('Verifique o console do navegador (F12) para o log do servidor simulado.');
+    });
+
+    // tabs
+    tabs.forEach(t=> t.addEventListener('click', ()=>{
+      tabs.forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      const which = t.dataset.tab;
+      document.getElementById('userCard').style.display = (which==='user'?'block':'none');
+    }));
+
+    // init
+    renderHistory();
+  </script>
+</body>
+</html>
