@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Fechador de Janela — Protótipo Web</title>
+  <title>Smart Window — Protótipo Web</title>
   <style>
     :root{
       --bg:#0f1724;
@@ -34,15 +34,26 @@
     .tab.active{background:linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));color:#fff;border:1px solid var(--glass-border); box-shadow: inset 0 1px 0 rgba(255,255,255,0.02)}
 
     /* Layout principal */
-    .content{
-      flex:1;
-      display:grid;
-      grid-template-columns: 1.3fr 1fr;
-      gap:16px;
-      align-items:flex-start;
+    .content {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1.3fr 1fr; /* Padrão: 2 colunas */
+      gap: 16px;
+      align-items: flex-start;
     }
-    .column{display:flex; flex-direction:column; gap:12px}
-    .column.right{max-width:280px; min-width:240px}
+
+    /* NOVO: Classe para centralizar quando o modo de Notificações estiver ativo */
+    .content.center-notifs {
+      grid-template-columns: 1fr; /* Apenas 1 coluna */
+      justify-content: center; /* Centraliza o conteúdo horizontalmente (em navegadores modernos) */
+      align-items: center; /* Centraliza o conteúdo verticalmente */
+      height: 100%; /* Garante que o container use o espaço vertical disponível */
+    }
+
+    .column.left-notifs { /* Para identificar a coluna de Notificações */
+      max-width: 480px; /* Limita o tamanho do card para que não se expanda demais */
+      width: 100%;
+    }
 
     /* Card */
     .card{background:var(--card); border-radius:14px; padding:12px; border:1px solid var(--glass-border); box-shadow: 0 6px 18px rgba(2,6,23,0.5)}
@@ -98,9 +109,11 @@
 <body>
   <div class="app">
     <header>
-      <div class="logo"><span>FJ</span></div>
+      <div class="Icone">
+        <img src="imgs/logo.jpg" alt="icone" style="width: 100px; height: auto;">
+      </div>
       <div>
-        <h1>Fechador de Janela</h1>
+        <h1>Smart Window</h1>
         <p class="sub">Protótipo web — notificações simuladas</p>
       </div>
     </header>
@@ -144,7 +157,9 @@
             <label class="small">Foto</label>
             <input type="file" id="inputFoto" accept="image/*">
             <div style="display:flex; gap:10px; align-items:center">
-              <div class="user-photo" style="width:72px;height:72px;"> <img id="previewFoto" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:8px"> </div>
+              <div class="user-photo" style="width:72px;height:72px;">
+                <img id="previewFoto" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:8px">
+              </div>
               <div style="flex:1">
                 <label class="small">Nome</label>
                 <input type="text" id="inputNome" placeholder="Seu nome">
@@ -183,143 +198,305 @@
     </div>
 
     <footer>
-      Protótipo criado para apresentação TI5 — Caio Gomes
+      Protótipo Interface Smart Window — Caio Gomes, Caio Fiorini, Daniel Salgado, Lucas Araujo, Julio Cesar
     </footer>
   </div>
 
   <audio id="pingSound" src="" preload="auto"></audio>
 
-  <script>
-    // Estado
-    const state = { history: [], user: { name:'', email:'', photoData:null} };
+<script>
+  // Estado
+  const state = { history: [], user: { name:'', email:'', photoData:null} };
 
-    // Elements
-    const tabs = document.querySelectorAll('.tab');
-    const historyEl = document.getElementById('history');
-    const btnFechar = document.getElementById('btnFechar');
-    const btnUmidade = document.getElementById('btnUmidade');
-    const btnLimpar = document.getElementById('btnLimpar');
-    const btnExport = document.getElementById('btnExport');
-    const summaryName = document.getElementById('summaryName');
-    const summaryEmail = document.getElementById('summaryEmail');
-    const userPhotoSummary = document.getElementById('userPhotoSummary');
-    const inputFoto = document.getElementById('inputFoto');
-    const previewFoto = document.getElementById('previewFoto');
-    const inputNome = document.getElementById('inputNome');
-    const inputEmail = document.getElementById('inputEmail');
-    const btnSalvar = document.getElementById('btnSalvar');
-    const btnClearUser = document.getElementById('btnClearUser');
-    const btnSimularServer = document.getElementById('btnSimularServer');
-    const cfgSound = document.getElementById('cfgSound');
-    const cfgAutoClear = document.getElementById('cfgAutoClear');
+  // Elements
+  const tabs = document.querySelectorAll('.tab');
+  const historyEl = document.getElementById('history');
+  const btnFechar = document.getElementById('btnFechar');
+  const btnUmidade = document.getElementById('btnUmidade');
+  const btnLimpar = document.getElementById('btnLimpar');
+  const btnExport = document.getElementById('btnExport');
+  const summaryName = document.getElementById('summaryName');
+  const summaryEmail = document.getElementById('summaryEmail');
+  const userPhotoSummary = document.getElementById('userPhotoSummary');
+  const inputFoto = document.getElementById('inputFoto');
+  const previewFoto = document.getElementById('previewFoto');
+  const inputNome = document.getElementById('inputNome');
+  const inputEmail = document.getElementById('inputEmail');
+  const btnSalvar = document.getElementById('btnSalvar');
+  const btnClearUser = document.getElementById('btnClearUser');
+  const btnSimularServer = document.getElementById('btnSimularServer');
+  const cfgSound = document.getElementById('cfgSound');
+  const cfgAutoClear = document.getElementById('cfgAutoClear');
 
-    // Helper
-    function now(){
-      const d = new Date();
-      return d.toLocaleString('pt-BR');
+  // Helper
+  function now(){
+    const d = new Date();
+    return d.toLocaleString('pt-BR');
+  }
+
+  function renderHistory(){
+    historyEl.innerHTML = '';
+    for(let i=state.history.length-1;i>=0;i--){
+      const it = state.history[i];
+      const div = document.createElement('div');
+      div.className = 'item';
+
+      const badge = document.createElement('div');
+      badge.className = 'badge ' + (it.type==='UMIDADE' ? 'umidade' : 'fechado');
+      badge.textContent = it.type==='UMIDADE' ? '💧' : (it.type==='ABERTA' ? '🔓' : '🔒');
+
+      const body = document.createElement('div');
+      body.className = 'item-body';
+      body.innerHTML = `<div class="time">${it.time}</div><div class="msg">${it.msg}</div>`;
+
+      div.appendChild(badge);
+      div.appendChild(body);
+      historyEl.appendChild(div);
+    }
+  }
+
+  function addNotification(msg, type) {
+  // 🔹 Gera dados simulados de sensores
+  function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+  function randBoolText() { return Math.random() < 0.5 ? 'sim' : 'nao'; }
+
+  const temperatura = randInt(15, 35);
+  const umidade = randInt(40, 90);
+  const gotas = randBoolText();
+
+  const entry = { 
+    time: now(), 
+    msg, 
+    type,
+    temperatura,
+    umidade,
+    gotas
+  };
+
+  state.history.push(entry);
+  renderHistory();
+  console.log('[Servidor] Notificação enviada:', entry);
+
+  // 🔊 Som opcional
+  if (cfgSound && cfgSound.checked) {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'sine'; 
+      o.frequency.value = type === 'UMIDADE' ? 660 : 420;
+      g.gain.value = 0.02;
+      o.connect(g); 
+      g.connect(ctx.destination);
+      o.start(); 
+      o.stop(ctx.currentTime + 0.08);
+    } catch (e) { /* som pode falhar em alguns contextos */ }
+  }
+
+  // 🧽 Auto-limpeza se configurada
+  const auto = parseInt(cfgAutoClear.value, 10);
+  if (auto > 0) {
+    setTimeout(() => { state.history = []; renderHistory(); }, auto * 1000);
+  }
+}
+
+// 🧩 Atualize também a função renderHistory para exibir os novos dados:
+function renderHistory() {
+  historyEl.innerHTML = '';
+  for (let i = state.history.length - 1; i >= 0; i--) {
+    const it = state.history[i];
+    const div = document.createElement('div');
+    div.className = 'item';
+
+    const badge = document.createElement('div');
+    badge.className = 'badge ' + (it.type === 'UMIDADE' ? 'umidade' : 'fechado');
+    badge.textContent = it.type === 'UMIDADE' ? '💧' : (it.type === 'ABERTA' ? '🔓' : '🔒');
+
+    const body = document.createElement('div');
+    body.className = 'item-body';
+    
+    // 🌟 Mensagem aprimorada com sensores
+    const sensoresInfo = `
+      <div class="small" style="margin-top:4px;color:var(--muted)">
+        🌡️ ${it.temperatura}°C &nbsp;&nbsp;💧 ${it.umidade}% &nbsp;&nbsp;☔ ${it.gotas}
+      </div>
+    `;
+
+    body.innerHTML = `<div class="time">${it.time}</div>
+                      <div class="msg">${it.msg}</div>
+                      ${sensoresInfo}`;
+
+    div.appendChild(badge);
+    div.appendChild(body);
+    historyEl.appendChild(div);
+  }
+}
+
+  // 🌟 NOVO: Estado da janela e botão dinâmico com ícones
+  let janelaAberta = true;
+
+  function atualizarBotaoJanela() {
+    if (janelaAberta) {
+      btnFechar.innerHTML = "🔒 Fechar janela";
+      btnFechar.style.background = "linear-gradient(90deg, rgba(239,68,68,0.12), rgba(239,68,68,0.06))";
+      btnFechar.style.color = "var(--danger)";
+    } else {
+      btnFechar.innerHTML = "🔓 Abrir janela";
+      btnFechar.style.background = "linear-gradient(90deg, rgba(16,185,129,0.12), rgba(16,185,129,0.06))";
+      btnFechar.style.color = "var(--success)";
+    }
+  }
+
+  btnFechar.addEventListener("click", () => {
+    if (janelaAberta) {
+      addNotification("A janela foi fechada manualmente.", "FECHADO");
+    } else {
+      addNotification("A janela foi aberta pelo usuário.", "ABERTA");
+    }
+    janelaAberta = !janelaAberta;
+    atualizarBotaoJanela();
+  });
+
+  atualizarBotaoJanela();
+
+  // --- Outros botões ---
+  btnUmidade.addEventListener('click', ()=> {
+    const ok = confirm('Umidade detectada. Deseja fechar a janela?');
+    if(ok) addNotification('Umidade detectada → Janela fechada pelo usuário.', 'UMIDADE');
+    else addNotification('Umidade detectada → Usuário manteve a janela aberta.', 'UMIDADE');
+  });
+
+  btnLimpar.addEventListener('click', ()=>{ if(confirm('Limpar histórico?')){ state.history=[]; renderHistory(); alert('Histórico limpo') } });
+
+  // ✅ EXPORTAÇÃO COM TABELA ALINHADA
+  btnExport.addEventListener('click', () => {
+  if (state.history.length === 0) {
+    alert('Nenhum dado para exportar.');
+    return;
+  }
+
+  const formato = prompt('Escolha o formato de exportação: "txt" ou "csv"').toLowerCase();
+
+  function randInt(min, max){ return Math.floor(Math.random()*(max-min+1))+min; }
+  function randBoolText(){ return Math.random() < 0.5 ? '1' : '0'; }
+
+  let texto = '';
+  const safeStamp = new Date().toISOString().slice(0,19).replace(/:/g,'-');
+  let nomeArquivo = `historico_${safeStamp}`;
+
+  if (formato === 'csv') {
+    // Cabeçalho CSV
+    texto += "Data,Hora,Temperatura(°C),Gotas detectadas,Umidade(%)\n";
+
+    for (const h of state.history) {
+      let d = new Date(h.time);
+      if (isNaN(d.getTime())) d = new Date();
+      const data = d.toLocaleDateString('pt-BR');
+      const hora = d.toLocaleTimeString('pt-BR');
+      const temp = randInt(5, 38);
+      const hum = randInt(30, 90);
+      const gotas = randBoolText();
+      texto += `${data},${hora},${temp},${gotas},${hum}\n`;
     }
 
-    function renderHistory(){
-      historyEl.innerHTML = '';
-      for(let i=state.history.length-1;i>=0;i--){
-        const it = state.history[i];
-        const div = document.createElement('div');
-        div.className = 'item';
+    nomeArquivo += ".csv";
+  }
+  else if (formato === 'txt' || formato === '') {
+    // Exportação TXT formatada (padrão atual)
+    texto += "Data".padEnd(14) + "Hora".padEnd(12) + "Temperatura(C)".padEnd(18) + "Gotas detectadas".padEnd(20) + "Umidade(%)\n";
+    texto += "-".repeat(70) + "\n";
 
-        const badge = document.createElement('div');
-        badge.className = 'badge ' + (it.type==='UMIDADE' ? 'umidade' : 'fechado');
-        badge.textContent = it.type==='UMIDADE' ? '💧' : '❌';
+    for (const h of state.history) {
+      let d = new Date(h.time);
+      if (isNaN(d.getTime())) d = new Date();
+      const data = d.toLocaleDateString('pt-BR');
+      const hora = d.toLocaleTimeString('pt-BR');
+      const temp = randInt(5, 38);
+      const hum = randInt(30, 90);
+      const gotas = randBoolText();
 
-        const body = document.createElement('div');
-        body.className = 'item-body';
-        body.innerHTML = `<div class="time">${it.time}</div><div class="msg">${it.msg}</div>`;
-
-        div.appendChild(badge);
-        div.appendChild(body);
-        historyEl.appendChild(div);
-      }
+      texto += data.padEnd(14) + hora.padEnd(12) + temp.toString().padEnd(18) + gotas.padEnd(20) + hum.toString().padEnd(10) + "\n";
     }
 
-    function addNotification(msg, type){
-      const entry = { time: now(), msg, type };
-      state.history.push(entry);
-      renderHistory();
-      console.log('[Servidor] Notificação enviada:', entry);
-      if(cfgSound.checked){
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const o = ctx.createOscillator();
-        const g = ctx.createGain();
-        o.type='sine'; o.frequency.value = type==='UMIDADE' ? 660 : 420;
-        g.gain.value = 0.02;
-        o.connect(g); g.connect(ctx.destination);
-        o.start(); o.stop(ctx.currentTime+0.08);
-      }
+    nomeArquivo += ".txt";
+  }
+  else {
+    alert('Formato inválido. Escolha "txt" ou "csv".');
+    return;
+  }
 
-      const auto = parseInt(cfgAutoClear.value,10);
-      if(auto>0){
-        setTimeout(()=>{ state.history = []; renderHistory(); }, auto*1000);
-      }
+  // Criação e download do arquivo
+  const blob = new Blob([texto], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nomeArquivo;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+
+  // Upload e dados do usuário
+  inputFoto.addEventListener('change', (e)=>{
+    const f = e.target.files[0];
+    if(!f) return;
+    const r = new FileReader();
+    r.onload = ()=>{
+      previewFoto.src = r.result; previewFoto.style.display='block';
+      userPhotoSummary.innerHTML = '';
+      const img = document.createElement('img'); img.src = r.result; img.style.width='100%'; img.style.height='100%'; img.style.objectFit='cover';
+      userPhotoSummary.appendChild(img);
+      state.user.photoData = r.result;
+    };
+    r.readAsDataURL(f);
+  });
+
+  btnSalvar.addEventListener('click', ()=>{
+    state.user.name = inputNome.value.trim();
+    state.user.email = inputEmail.value.trim();
+    summaryName.textContent = state.user.name ? state.user.name : 'Nome: -';
+    summaryEmail.textContent = state.user.email ? state.user.email : 'Email: -';
+    alert('Dados do usuário atualizados');
+  });
+
+  btnClearUser.addEventListener('click', ()=>{
+    if(!confirm('Limpar dados do usuário?')) return;
+    inputNome.value=''; inputEmail.value=''; previewFoto.style.display='none'; userPhotoSummary.innerHTML='?'; state.user={name:'',email:'',photoData:null}; summaryName.textContent='Nome: -'; summaryEmail.textContent='Email: -';
+  });
+
+  btnSimularServer.addEventListener('click', ()=>{
+    console.log('Estado atual do protótipo (simulado):', JSON.stringify(state, null, 2));
+    alert('Verifique o console do navegador (F12) para o log do servidor simulado.');
+  });
+
+  // tabs behavior
+  tabs.forEach(t => t.addEventListener('click', () => {
+    tabs.forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    const which = t.dataset.tab;
+
+    const content = document.querySelector('.content');
+    const rightColumn = document.querySelector('.column.right');
+    const userCard = document.getElementById('userCard');
+
+    rightColumn.style.display = 'none';
+    userCard.style.display = 'none';
+    content.classList.remove('center-notifs');
+
+    if (which === 'user') {
+      rightColumn.style.display = 'block';
+      userCard.style.display = 'block';
+    } else if (which === 'config') {
+      rightColumn.style.display = 'block';
+    } else if (which === 'notifs') {
+      content.classList.add('center-notifs');
     }
+  }));
 
-    // events
-    btnFechar.addEventListener('click', ()=> addNotification('A janela foi fechada automaticamente.', 'FECHADO'));
-    btnUmidade.addEventListener('click', ()=> {
-      const ok = confirm('Umidade detectada. Deseja fechar a janela?');
-      if(ok) addNotification('Umidade detectada → Janela fechada pelo usuário.', 'UMIDADE');
-      else addNotification('Umidade detectada → Usuário manteve a janela aberta.', 'UMIDADE');
-    });
-    btnLimpar.addEventListener('click', ()=>{ if(confirm('Limpar histórico?')){ state.history=[]; renderHistory(); alert('Histórico limpo') } });
+  // init
+  renderHistory();
+</script>
 
-    btnExport.addEventListener('click', ()=>{
-      const lines = state.history.map(h=>`[${h.time}] [${h.type}] ${h.msg}`);
-      const blob = new Blob([lines.join('\n')], {type:'text/plain;charset=utf-8'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href=url; a.download = `historico_${new Date().toISOString().slice(0,19)}.txt`; a.click(); URL.revokeObjectURL(url);
-    });
-
-    // user
-    inputFoto.addEventListener('change', (e)=>{
-      const f = e.target.files[0];
-      if(!f) return;
-      const r = new FileReader();
-      r.onload = ()=>{
-        previewFoto.src = r.result; previewFoto.style.display='block';
-        userPhotoSummary.innerHTML = '';
-        const img = document.createElement('img'); img.src = r.result; img.style.width='100%'; img.style.height='100%'; img.style.objectFit='cover';
-        userPhotoSummary.appendChild(img);
-        state.user.photoData = r.result;
-      };
-      r.readAsDataURL(f);
-    });
-
-    btnSalvar.addEventListener('click', ()=>{
-      state.user.name = inputNome.value.trim();
-      state.user.email = inputEmail.value.trim();
-      summaryName.textContent = state.user.name ? state.user.name : 'Nome: -';
-      summaryEmail.textContent = state.user.email ? state.user.email : 'Email: -';
-      alert('Dados do usuário atualizados');
-    });
-
-    btnClearUser.addEventListener('click', ()=>{
-      if(!confirm('Limpar dados do usuário?')) return;
-      inputNome.value=''; inputEmail.value=''; previewFoto.style.display='none'; userPhotoSummary.innerHTML='?'; state.user={name:'',email:'',photoData:null}; summaryName.textContent='Nome: -'; summaryEmail.textContent='Email: -';
-    });
-
-    btnSimularServer.addEventListener('click', ()=>{
-      console.log('Estado atual do protótipo (simulado):', JSON.stringify(state, null, 2));
-      alert('Verifique o console do navegador (F12) para o log do servidor simulado.');
-    });
-
-    // tabs
-    tabs.forEach(t=> t.addEventListener('click', ()=>{
-      tabs.forEach(x=>x.classList.remove('active'));
-      t.classList.add('active');
-      const which = t.dataset.tab;
-      document.getElementById('userCard').style.display = (which==='user'?'block':'none');
-    }));
-
-    // init
-    renderHistory();
-  </script>
 </body>
 </html>
